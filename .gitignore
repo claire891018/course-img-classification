@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.history 
+.env
+checkpoints/convnext-large-finetuned-v3
 
 # C extensions
 *.so

@@ -1,6 +1,7 @@
 import torch
 import yaml
 import os
+import random
 import numpy as np
 from torch.utils.data import random_split, DataLoader
 from sklearn.metrics import accuracy_score
@@ -14,6 +15,7 @@ from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn.functional as F
 from transformers import get_cosine_schedule_with_warmup
+from heatmap import visualize_heatmap
 
 with open('configs/convnext_ft_cfg.yaml', "r") as f:
     config = yaml.safe_load(f)
@@ -104,22 +106,29 @@ def train(model, train_loader, optimizer, criterion, scheduler, device, gradient
     accuracy = 100.0 * correct / total
     return total_loss / len(train_loader), accuracy
 
-def evaluate(model, test_loader, criterion, device, epoch):
+def evaluate(model, test_loader, criterion, device, epoch, processor=None):
     model.eval()
     total_loss = 0
     correct = 0
     total = 0
     
     results = []
-    sample_idx = 0
 
+    generate_heatmaps = (epoch >= 6)
+    heatmap_dir = f"heatmap_results/{config['output_dir']}/epoch_{epoch}"
+
+    if generate_heatmaps and processor is not None:
+        os.makedirs(heatmap_dir, exist_ok=True)
+
+    test_paths = [test_loader.dataset.annotations.iloc[i] for i in range(len(test_loader.dataset))]
+    
     with torch.no_grad():
-        for batch in tqdm(test_loader, desc="Evaluating"):
+        for batch_idx, batch in enumerate(tqdm(test_loader, desc="Evaluating")):
             images, labels = batch
-            images = images["pixel_values"].to(device)
+            images_tensor = images["pixel_values"].to(device)
             labels = labels.to(device)
             
-            outputs = model(pixel_values=images)
+            outputs = model(pixel_values=images_tensor)
             loss = criterion(outputs.logits, labels)
             probabilities = F.softmax(outputs.logits, dim=1)
             
@@ -130,22 +139,108 @@ def evaluate(model, test_loader, criterion, device, epoch):
             correct += predicted.eq(labels).sum().item()
 
             for i in range(labels.size(0)):
+                actual_idx = batch_idx * test_loader.batch_size + i
+                if actual_idx >= len(test_paths):
+                    continue  
+                
+                img_path = test_paths[actual_idx]
+
+                heatmap_path = ""
+                if generate_heatmaps and processor is not None:
+                    heatmap_type = ""
+                    if predicted[i].item() != labels[i].item():
+                        if probabilities[i][predicted[i]].item() > 0.9:
+                            heatmap_type = "high_confidence_errors"
+                        else:
+                            heatmap_type = "incorrect_predictions"
+                            
+
+                    if heatmap_type:
+                        type_dir = os.path.join(heatmap_dir, heatmap_type)
+                        os.makedirs(type_dir, exist_ok=True)
+                        
+                        try:
+                            heatmap_path = visualize_heatmap(
+                                model,
+                                processor,
+                                img_path,
+                                device,
+                                ori_lable=model.config.id2label[labels[i].item()],
+                                predict_lable=model.config.id2label[predicted[i].item()],
+                                output_dir=type_dir,
+                            )
+                        except Exception as e:
+                            print(f"生成熱力圖時出錯 ({img_path}): {e}")
+                    
                 results.append({
-                    "sample_idx": f"test_{sample_idx:04d}.jpg",
+                    "img_path": img_path,
                     "true_label": labels[i].item(),
                     "predicted_label": predicted[i].item(),
-                    "probabilities": probabilities[i].cpu().numpy(),  
+                    "class_name_true": model.config.id2label[labels[i].item()],
+                    "class_name_pred": model.config.id2label[predicted[i].item()],
+                    "probability_spaghetti": probabilities[i][0].item(),
+                    "probability_ramen": probabilities[i][1].item(),
+                    "probability_udon": probabilities[i][2].item(),
                     "correct": int(predicted[i].item() == labels[i].item()),
-                    "loss": loss.item()
+                    "loss": loss.item(),
+                    "heatmap_path": heatmap_path
                 })
-                sample_idx += 1
                     
-    csv_filename = f"dataset/results_{epoch}.csv"          
+    result_dir = f"results/{config['output_dir']}" 
+    os.makedirs(result_dir, exist_ok=True)  
+
+    csv_filename = f"{result_dir}/{epoch}.csv"        
     df = pd.DataFrame(results)
     df.to_csv(csv_filename, index=False)
 
+    json_filename = f"{result_dir}/{epoch}_for_llm.json"
+    df.to_json(json_filename, orient="records", indent=2)
+
     accuracy = 100.0 * correct / total
     return total_loss / len(test_loader), accuracy
+
+# def evaluate(model, test_loader, criterion, device, epoch):
+#     model.eval()
+#     total_loss = 0
+#     correct = 0
+#     total = 0
+    
+#     results = []
+#     sample_idx = 0
+
+#     with torch.no_grad():
+#         for batch in tqdm(test_loader, desc="Evaluating"):
+#             images, labels = batch
+#             images = images["pixel_values"].to(device)
+#             labels = labels.to(device)
+            
+#             outputs = model(pixel_values=images)
+#             loss = criterion(outputs.logits, labels)
+#             probabilities = F.softmax(outputs.logits, dim=1)
+            
+#             total_loss += loss.item()
+            
+#             _, predicted = outputs.logits.max(1)
+#             total += labels.size(0)
+#             correct += predicted.eq(labels).sum().item()
+
+#             for i in range(labels.size(0)):
+#                 results.append({
+#                     "sample_idx": f"test_{sample_idx:04d}.jpg",
+#                     "true_label": labels[i].item(),
+#                     "predicted_label": predicted[i].item(),
+#                     "probabilities": probabilities[i].cpu().numpy(),  
+#                     "correct": int(predicted[i].item() == labels[i].item()),
+#                     "loss": loss.item()
+#                 })
+#                 sample_idx += 1
+                    
+#     csv_filename = f"dataset/results_{epoch}.csv"          
+#     df = pd.DataFrame(results)
+#     df.to_csv(csv_filename, index=False)
+
+#     accuracy = 100.0 * correct / total
+#     return total_loss / len(test_loader), accuracy
 
 def main():
     print(f"Starting training with config: {config}")
@@ -153,8 +248,14 @@ def main():
     torch.manual_seed(42)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(42)
+
+    print("PyTorch sees {} GPUs.".format(torch.cuda.device_count()))
+    for i in range(torch.cuda.device_count()):
+        print(i, torch.cuda.get_device_name(i))
+
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     
     train_dataset = ImageTextDataset(config['train_csv'], is_training=True)
@@ -240,8 +341,9 @@ def main():
             gradient_clip_val=config.get('gradient_clip_val', 1.0)
         )
         
-        test_loss, test_accuracy = evaluate(model, test_loader, criterion, device, epoch)
-        
+        # test_loss, test_accuracy = evaluate(model, test_loader, criterion, device, epoch)
+        test_loss, test_accuracy = evaluate(model, test_loader, criterion, device, epoch, processor)
+
         writer.add_scalar('Loss/train', train_loss, epoch)
         writer.add_scalar('Loss/test', test_loss, epoch)
         writer.add_scalar('Accuracy/train', train_acc, epoch)
