@@ -1,0 +1,33 @@
+# 模型設定
+model_name: "/Users/apple/Downloads/2025/NLP-image-classification/checkpoints/convnext-large-finetuned_best" #"facebook/convnext-large-384-22k-1k" #"facebook/convnext-base-384-22k-1k"
+output_dir: "convnext-large-finetuned-v3"            
+
+# 數據設定
+train_csv: "dataset/train_data.csv"              
+test_csv: "dataset/test_data.csv"                
+class_names: ["spaghetti", "ramen", "udon"]      
+num_labels: 3                                    
+
+# 訓練超參數
+batch_size: 16                                   
+num_train_epochs: 15                             
+weight_decay: 0.03                               
+label_smoothing_factor: 0.2                    
+
+# 學習率設定
+learning_rate: 2e-5                         
+classifier_lr: 1e-4                             
+encoder_lr: 1e-5                                
+lr_scheduler_type: "cosine"                      
+warmup_ratio: 0.15                               
+
+# 穩定性調整
+gradient_clip_val: 1.0                           
+patience: 10                                     
+
+# 模型設定選項
+freeze_base_model: false                         
+fp16: false                                      
+
+# 日誌設定
+logging_steps: 10                                
