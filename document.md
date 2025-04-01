@@ -89,7 +89,6 @@ ConvNeXt [4] 採取「卷積網路的再現代化 (Modernizing a ConvNet)」策�
   </tr>
 </table>
 
-
 ![tensorboard](https://imgur.com/gVMyj7i.jpg)
 
 ## 2. 資料集、資料增強與訓練策略
@@ -150,9 +149,11 @@ transforms.Compose([
 在第 8 + 8 個 epoch，模型達到最佳準確率。
 
 * 測試集準確率：97.73%
-* 平均損失值：0.518 （損失值看起來較高，是因為模型訓練時使用 Label Smoothing（0.2）使得損失值提高。）
+* 平均損失值：0.518 （損失值看起來較高，是因為模型訓練時使用 Label Smoothing（0.2）使!得損失值提高。）
 
 ### 3.2 分類別性能
+
+![matrix](https://imgur.com/CxEw8ft.jpg)
 
 | 類別                 | 準確率 |
 | -------------------- | ------ |
