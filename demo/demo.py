@@ -39,8 +39,8 @@ def project_details():
         md_content = f.read()
 
     with st.expander("", expanded=True):
-        st.markdown(md_content)
-
+        st.markdown(md_content, unsafe_allow_html=True)
+        
 def results_page():
     st.title("分類結果")
     
