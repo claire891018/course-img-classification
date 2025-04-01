@@ -209,6 +209,11 @@ transforms.Compose([
    - 真實標籤；
    - 熱力圖顯示的模型注意力區域。
 2. **LLM 解釋生成**：使用預訓練模型 google/gemma-3-4b-it 作為語言生成器，將上述結構化數據輸入進去。LLM 會根據這些資料生成一段自然語言解釋，描述模型在圖像中關注的關鍵區域，以及這些區域如何影響最終預測。
+3. 以網頁形式與 LLM 互動。
+
+   ![ ](https://imgur.com/tFJcojj.jpg "網頁入口")
+
+   ![img](https://imgur.com/e4kfdoH.jpg "LLM ans example1")
 
 > 結合 `google/gemma-3-4b-it`，我能夠將 ConvNeXt 模型輸出與 ScoreCAM 熱力圖的技術數據轉換成自然語言解釋。 ScoreCAM 提高模型可解釋性的透明度，LLM 使錯誤案例的原因分析和後續改進說明更潛顯易懂。
 
