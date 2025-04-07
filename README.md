@@ -2,6 +2,7 @@
 
 本專案使用 **ConvNeXt** 模型進行圖像分類 (麵類辨識)，並透過 **ScoreCAM** 生成熱力圖，協助分析錯誤樣本與可解釋性。部分功能與 **LLM** 整合，提供多輪對話式分析。
 [This project's Github Repo](https://github.com/claire891018/course-img-classification.git)
+
 NCKU NLP course midterm. [ref](https://github.com/naoya1110/ai_robotics_lab_2024_hands_on.git)
 
 ## 目錄結構
