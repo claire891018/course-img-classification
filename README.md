@@ -82,4 +82,4 @@ NCKU NLP course midterm. [ref](https://github.com/naoya1110/ai_robotics_lab_2024
 
 ---
 
-如需更詳盡的技術或設計細節，可參考 `demo/document.html`
+如需更詳盡的技術或設計細節，可參考 `demo/document.md`
